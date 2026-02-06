@@ -145,6 +145,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleConfirmDeleteUser = (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete the user "${name}"?`)) {
+      onDeleteUser(id);
+    }
+  };
+
+  const handleConfirmDeleteIssue = (code: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete the issue "${name}" (${code})?`)) {
+      onDeleteIssue(code);
+    }
+  };
+
   const handleOpenIssueModal = (issue?: IssueMaster) => {
     setEditingId(issue ? issue.code : null);
     setIssueFormData(issue || { 
@@ -300,8 +312,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <td className="px-6 py-6 text-sm text-slate-300 font-medium">{u.department}</td>
                     <td className="px-6 py-6 text-right">
                       <div className="flex justify-end space-x-4 text-slate-500">
-                        <button onClick={() => handleOpenUserModal(u)} className="hover:text-blue-400 transition-colors p-1" title="Edit"><Edit2 size={18} /></button>
-                        <button onClick={() => onDeleteUser(u.id)} className="hover:text-red-500 transition-colors p-1" title="Delete"><Trash2 size={18} /></button>
+                        <button type="button" onClick={() => handleOpenUserModal(u)} className="hover:text-blue-400 transition-colors p-1" title="Edit"><Edit2 size={18} /></button>
+                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirmDeleteUser(u.id, u.name); }} className="hover:text-red-500 transition-colors p-1" title="Delete"><Trash2 size={18} /></button>
                       </div>
                     </td>
                   </tr>
@@ -411,8 +423,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="px-6 py-6 text-sm text-white font-mono font-bold">{i.slaHours}h</td>
                         <td className="px-6 py-6 text-right">
                            <div className="flex justify-end space-x-4 text-slate-500">
-                             <button onClick={() => handleOpenIssueModal(i)} className="hover:text-blue-400 transition-colors p-1" title="Edit"><Edit2 size={18}/></button>
-                             <button onClick={() => onDeleteIssue(i.code)} className="hover:text-red-500 transition-colors p-1" title="Delete"><Trash2 size={18}/></button>
+                             <button type="button" onClick={() => handleOpenIssueModal(i)} className="hover:text-blue-400 transition-colors p-1" title="Edit"><Edit2 size={18}/></button>
+                             <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirmDeleteIssue(i.code, i.name); }} className="hover:text-red-500 transition-colors p-1" title="Delete"><Trash2 size={18}/></button>
                            </div>
                         </td>
                      </tr>

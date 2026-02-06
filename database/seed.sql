@@ -63,22 +63,22 @@ INSERT INTO issue_master (code, name, app, category, priority, sla_hours, status
   ('IT-BOT-001', 'BOT Workflow mismatch', 'IT', 'Incident', 'High', 24, 'Active')
 ON CONFLICT (code) DO NOTHING;
 
--- Issue Assignees (issue_code -> user_id)
-INSERT INTO issue_assignees (issue_code, user_id) VALUES
-  ('IT-ACC-001', 'u7'), ('IT-ACC-001', 'u6'), ('IT-ACC-001', 'u16'),
-  ('IT-CTV-001', 'u14'), ('IT-CTV-001', 'u12'),
-  ('IT-NET-001', 'u28'), ('IT-NET-001', 'u17'),
-  ('IT-MDM-001', 'u18'), ('IT-MDM-001', 'u7'), ('IT-MDM-001', 'u17'),
-  ('IT-PRN-001', 'u8'), ('IT-PRN-001', 'u6'),
-  ('IT-WEB-001', 'u17'), ('IT-WEB-001', 'u18'),
-  ('IT-HRD-002', 'u11'), ('IT-HRD-002', 'u25'),
-  ('IT-SFT-002', 'u20'), ('IT-SFT-002', 'u23'),
-  ('IT-EML-001', 'u7'), ('IT-EML-001', 'u18'),
-  ('P2P-APP-001', 'u6'), ('P2P-APP-001', 'u20'),
-  ('IT-FLU-001', 'u29'), ('IT-FLU-001', 'u28'),
-  ('IT-CYB-001', 'u18'), ('IT-CYB-001', 'u15'),
-  ('IT-BOT-001', 'u2'), ('IT-BOT-001', 'u20')
-ON CONFLICT (issue_code, user_id) DO NOTHING;
+-- Issue Assignees (issue_code, user_id, position). position 1 = default assignee for that issue.
+INSERT INTO issue_assignees (issue_code, user_id, position) VALUES
+  ('IT-ACC-001', 'u7', 1), ('IT-ACC-001', 'u6', 2), ('IT-ACC-001', 'u16', 3),
+  ('IT-CTV-001', 'u14', 1), ('IT-CTV-001', 'u12', 2),
+  ('IT-NET-001', 'u28', 1), ('IT-NET-001', 'u17', 2),
+  ('IT-MDM-001', 'u18', 1), ('IT-MDM-001', 'u7', 2), ('IT-MDM-001', 'u17', 3),
+  ('IT-PRN-001', 'u8', 1), ('IT-PRN-001', 'u6', 2),
+  ('IT-WEB-001', 'u17', 1), ('IT-WEB-001', 'u18', 2),
+  ('IT-HRD-002', 'u11', 1), ('IT-HRD-002', 'u25', 2),
+  ('IT-SFT-002', 'u20', 1), ('IT-SFT-002', 'u23', 2),
+  ('IT-EML-001', 'u7', 1), ('IT-EML-001', 'u18', 2),
+  ('P2P-APP-001', 'u6', 1), ('P2P-APP-001', 'u20', 2),
+  ('IT-FLU-001', 'u29', 1), ('IT-FLU-001', 'u28', 2),
+  ('IT-CYB-001', 'u18', 1), ('IT-CYB-001', 'u15', 2),
+  ('IT-BOT-001', 'u2', 1), ('IT-BOT-001', 'u20', 2)
+ON CONFLICT (issue_code, user_id) DO UPDATE SET position = EXCLUDED.position;
 
 -- SLA Master
 INSERT INTO sla_master (id, priority, ticket_type, resolution_time_hours, auto_escalate) VALUES

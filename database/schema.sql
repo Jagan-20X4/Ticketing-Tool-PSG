@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS issue_master (
 CREATE TABLE IF NOT EXISTS issue_assignees (
   issue_code VARCHAR(50) NOT NULL REFERENCES issue_master(code) ON DELETE CASCADE,
   user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  position INT NOT NULL DEFAULT 0,
   PRIMARY KEY (issue_code, user_id)
 );
 
@@ -104,18 +105,18 @@ CREATE TABLE IF NOT EXISTS patients (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tickets (
   id VARCHAR(50) PRIMARY KEY,
-  requester_id VARCHAR(50) NOT NULL REFERENCES users(id),
+  requester_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
   requester_name VARCHAR(255) NOT NULL,
   requester_phone VARCHAR(50),
   app VARCHAR(50) NOT NULL REFERENCES applications(id),
   type VARCHAR(50) NOT NULL,
-  issue_code VARCHAR(50) NOT NULL REFERENCES issue_master(code),
+  issue_code VARCHAR(50) REFERENCES issue_master(code) ON DELETE SET NULL,
   issue_name VARCHAR(255) NOT NULL,
   summary VARCHAR(500) NOT NULL,
   description TEXT,
   status VARCHAR(50) NOT NULL DEFAULT 'Yet to Start',
   priority VARCHAR(20) NOT NULL CHECK (priority IN ('Low', 'Medium', 'High', 'Critical')),
-  assignee_id VARCHAR(50) REFERENCES users(id),
+  assignee_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   assigned_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

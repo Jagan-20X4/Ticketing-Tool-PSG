@@ -173,8 +173,13 @@ const App: React.FC = () => {
     } else setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
   };
   const handleDeleteUser = (id: string) => {
-    if (useApi) api.deleteUser(id).then(() => setUsers(prev => prev.filter(u => u.id !== id)));
-    else setUsers(prev => prev.filter(u => u.id !== id));
+    if (useApi) {
+      api.deleteUser(id)
+        .then(() => setUsers(prev => prev.filter(u => u.id !== id)))
+        .catch((err) => window.alert(err instanceof Error ? err.message : 'Failed to delete user. They may be assigned to tickets or issues.'));
+    } else {
+      setUsers(prev => prev.filter(u => u.id !== id));
+    }
   };
 
   const handleAddDepartment = (dept: Department) => {
@@ -203,8 +208,13 @@ const App: React.FC = () => {
     } else setIssues(prev => prev.map(i => i.code === code ? { ...i, ...updates } : i));
   };
   const handleDeleteIssue = (code: string) => {
-    if (useApi) api.deleteIssue(code).then(() => setIssues(prev => prev.filter(i => i.code !== code)));
-    else setIssues(prev => prev.filter(i => i.code !== code));
+    if (useApi) {
+      api.deleteIssue(code)
+        .then(() => setIssues(prev => prev.filter(i => i.code !== code)))
+        .catch((err) => window.alert(err instanceof Error ? err.message : 'Failed to delete issue.'));
+    } else {
+      setIssues(prev => prev.filter(i => i.code !== code));
+    }
   };
 
   const handleAddSLA = (rule: SLAMaster) => {

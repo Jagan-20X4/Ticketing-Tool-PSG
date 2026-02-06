@@ -1,5 +1,35 @@
-
 import { Ticket, TicketStatus, User, IssueMaster } from '../types';
+
+/**
+ * Picks the issue that best matches the user's description and AI summary.
+ * Used by the chatbot to assign the ticket to the correct issue type (and thus default assignee).
+ * E.g. "I have problem with access rights" → Access & Right (IT-ACC-001) → default assignee Siddique Sheikh.
+ */
+export const getBestMatchingIssue = (
+  appIssues: IssueMaster[],
+  userDescription: string,
+  aiSummary: string
+): IssueMaster | null => {
+  if (!appIssues || appIssues.length === 0) return null;
+  const text = `${(userDescription || '').toLowerCase()} ${(aiSummary || '').toLowerCase()}`;
+  const words = text.split(/\s+/).filter(Boolean);
+
+  let best: { issue: IssueMaster; score: number } = { issue: appIssues[0], score: -1 };
+
+  for (const issue of appIssues) {
+    const name = (issue.name || '').toLowerCase();
+    const code = (issue.code || '').toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      if (w.length < 2) continue;
+      if (name.includes(w) || code.includes(w)) score += 2;
+      if (name.split(/\s+/).some((nw) => nw.startsWith(w) || w.startsWith(nw))) score += 1;
+    }
+    if (score > best.score) best = { issue, score };
+  }
+
+  return best.issue;
+};
 
 export const getSmartAssignee = (
   issue: IssueMaster, 

@@ -41,6 +41,7 @@ export const suggestTicketMetadata = async (description: string, app: string): P
 
 export const triageIssue = async (description: string, availableApps: string[], base64Image?: string): Promise<{ summary: string; priority: string; app: string } | null> => {
   try {
+    const appList = availableApps.join(', ');
     const textPart = {
       text: `
         You are an expert IT Support Triage agent.
@@ -48,10 +49,10 @@ export const triageIssue = async (description: string, availableApps: string[], 
         
         Tasks:
         1. Summarize the issue into a clear title (max 10 words).
-        2. Determine the most likely application from this specific list: [${availableApps.join(', ')}]. If unsure, pick the closest match.
+        2. Pick the most likely application. You MUST use one of these exact values (copy as-is): ${appList}. If unsure, pick the closest match (e.g. network/printer/email → use the app id for IT infrastructure).
         3. Assign a priority: Low, Medium, High, or Critical.
         
-        Return ONLY a JSON object with keys "summary", "app", and "priority".
+        Return ONLY a JSON object with keys "summary", "app", and "priority". The "app" value must be exactly one of: ${appList}.
       `
     };
 

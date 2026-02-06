@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { User, IssueMaster, Application, TicketType, Priority, Ticket, Attachment } from '../types';
 import { triageIssue, getInitialSolution } from '../services/geminiService';
-import { getSmartAssignee } from '../services/ticketService';
+import { getBestMatchingIssue } from '../services/ticketService';
 
 interface AITriageChatProps {
   currentUser: User;
@@ -125,22 +125,40 @@ export const AITriageChat: React.FC<AITriageChatProps> = ({
       const triageResult = await triageIssue(userText, appIds, base64Image);
 
       if (triageResult) {
-        // Find best issue match
-        const appIssues = issues.filter(i => i.app === triageResult.app);
-        const bestIssue = appIssues[0] || issues.find(i => i.app === 'IT') || issues[0];
+        // Resolve AI app (may return id or name) to application id for consistent matching
+        const resolvedAppId = applications.find(
+          a => a.id === triageResult.app || (a.name && a.name.toLowerCase() === (triageResult.app || '').toLowerCase())
+        )?.id ?? triageResult.app;
 
-        // Apply Smart Assignment Rules
-        const { user: smartAssignee, reason } = getSmartAssignee(bestIssue, tickets, users);
+        // Find issues for this app (from PostgreSQL seed / API: first assignee = default for that issue)
+        const appIssues = issues.filter(i => i.app === resolvedAppId && i.assigneeIds && i.assigneeIds.length > 0);
+        const bestIssue = getBestMatchingIssue(appIssues, userText, triageResult.summary)
+          || appIssues[0]
+          || issues.find(i => i.assigneeIds && i.assigneeIds.length > 0)
+          || issues[0];
 
+        if (!bestIssue) {
+          setMessages(prev => [...prev, {
+            role: 'bot',
+            text: "No issue type is configured for this application yet. Please create a ticket manually from the 'Create Ticket' page or ask your admin to add issues for this app."
+          }]);
+          return;
+        }
+
+        // Use the default assignee for this issue (first in list from PostgreSQL seed)
+        const assigneeId = bestIssue.assigneeIds?.[0] ?? null;
+
+        // Use the user's exact message as ticket summary; only use AI summary when they didn't type (e.g. image only)
+        const ticketSummary = (userText && userText.trim()) ? userText.trim() : triageResult.summary;
         const ticketData = {
-          summary: triageResult.summary,
+          summary: ticketSummary,
           description: userText || "Issue described in screenshot.",
-          app: triageResult.app,
+          app: resolvedAppId,
           issue: bestIssue,
           priority: triageResult.priority as Priority,
           type: bestIssue.category || TicketType.INCIDENT,
           phone: currentUser.phone || 'N/A',
-          assigneeId: smartAssignee?.id,
+          assigneeId,
           attachments: attachment ? [attachment] : []
         };
 
@@ -155,11 +173,11 @@ export const AITriageChat: React.FC<AITriageChatProps> = ({
         }]);
 
         // Generate AI Solution
-        const initialSolution = await getInitialSolution(userText, triageResult.app, triageResult.summary);
-        
-        setMessages(prev => [...prev, { 
-          role: 'bot', 
-          text: `I've assigned your ticket to **${smartAssignee?.name || 'an engineer'}**. \n\n**While you wait, here's what you can try:**\n\n${initialSolution}` 
+        const initialSolution = await getInitialSolution(userText, resolvedAppId, triageResult.summary);
+        const assigneeName = assigneeId ? users.find(u => u.id === assigneeId)?.name : null;
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          text: `I've assigned your ticket to **${assigneeName || 'an engineer'}**. \n\n**While you wait, here's what you can try:**\n\n${initialSolution}`
         }]);
       } else {
         setMessages(prev => [...prev, { 

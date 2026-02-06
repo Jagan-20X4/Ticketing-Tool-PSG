@@ -93,18 +93,18 @@ const toAttachment = (row) => ({
 
 const toTicket = (row, comments = [], attachments = []) => ({
   id: row.id,
-  requesterId: row.requester_id,
-  requesterName: row.requester_name,
+  requesterId: row.requester_id || 'unknown',
+  requesterName: row.requester_name || 'Unknown',
   requesterPhone: row.requester_phone || '',
   app: row.app,
   type: row.type,
-  issueCode: row.issue_code,
-  issueName: row.issue_name,
+  issueCode: row.issue_code || 'UNKNOWN',
+  issueName: row.issue_name || 'Unknown',
   summary: row.summary,
   description: row.description || '',
   status: row.status,
   priority: row.priority,
-  assigneeId: row.assignee_id,
+  assigneeId: row.assignee_id ?? undefined,
   createdAt: row.created_at,
   assignedAt: row.assigned_at,
   updatedAt: row.updated_at,
@@ -274,11 +274,18 @@ app.delete('/api/applications/:id', async (req, res) => {
   }
 });
 
-// ---------- Issues (with assigneeIds) ----------
+// ---------- Issues (with assigneeIds; first = default assignee) ----------
 app.get('/api/issues', async (req, res) => {
   try {
     const issues = await pool.query('SELECT * FROM issue_master ORDER BY code');
-    const assignees = await pool.query('SELECT issue_code, user_id FROM issue_assignees');
+    let assignees;
+    try {
+      assignees = await pool.query(
+        'SELECT issue_code, user_id FROM issue_assignees ORDER BY issue_code, COALESCE(position, 0) ASC, user_id'
+      );
+    } catch (_) {
+      assignees = await pool.query('SELECT issue_code, user_id FROM issue_assignees ORDER BY issue_code, user_id');
+    }
     const map = {};
     assignees.rows.forEach((a) => {
       if (!map[a.issue_code]) map[a.issue_code] = [];
@@ -299,11 +306,16 @@ app.post('/api/issues', async (req, res) => {
       [i.code, i.name, i.app, i.category, i.priority, i.slaHours, i.status || 'Active']
     );
     const assigneeIds = i.assigneeIds || [];
-    for (const uid of assigneeIds) {
-      await pool.query('INSERT INTO issue_assignees (issue_code, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [i.code, uid]);
+    for (let pos = 0; pos < assigneeIds.length; pos++) {
+      const uid = assigneeIds[pos];
+      await pool.query(
+        'INSERT INTO issue_assignees (issue_code, user_id, position) VALUES ($1, $2, $3) ON CONFLICT (issue_code, user_id) DO UPDATE SET position = $3',
+        [i.code, uid, pos + 1]
+      ).catch(() => pool.query('INSERT INTO issue_assignees (issue_code, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [i.code, uid]));
     }
     const r = await pool.query('SELECT * FROM issue_master WHERE code = $1', [i.code]);
-    const a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1', [i.code]);
+    let a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1 ORDER BY COALESCE(position, 0) ASC, user_id', [i.code]);
+    if (a.rows.length === 0) a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1', [i.code]);
     res.status(201).json(toIssue(r.rows[0], a.rows.map((x) => x.user_id)));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -319,13 +331,18 @@ app.put('/api/issues/:code', async (req, res) => {
     );
     if (Array.isArray(i.assigneeIds)) {
       await pool.query('DELETE FROM issue_assignees WHERE issue_code = $1', [req.params.code]);
-      for (const uid of i.assigneeIds) {
-        await pool.query('INSERT INTO issue_assignees (issue_code, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.code, uid]);
+      for (let pos = 0; pos < i.assigneeIds.length; pos++) {
+        const uid = i.assigneeIds[pos];
+        await pool.query(
+          'INSERT INTO issue_assignees (issue_code, user_id, position) VALUES ($1, $2, $3) ON CONFLICT (issue_code, user_id) DO UPDATE SET position = $3',
+          [req.params.code, uid, pos + 1]
+        ).catch(() => pool.query('INSERT INTO issue_assignees (issue_code, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.code, uid]));
       }
     }
     const r = await pool.query('SELECT * FROM issue_master WHERE code = $1', [req.params.code]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Issue not found' });
-    const a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1', [req.params.code]);
+    let a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1 ORDER BY COALESCE(position, 0) ASC, user_id', [req.params.code]);
+    if (a.rows.length === 0) a = await pool.query('SELECT user_id FROM issue_assignees WHERE issue_code = $1', [req.params.code]);
     res.json(toIssue(r.rows[0], a.rows.map((x) => x.user_id)));
   } catch (e) {
     res.status(500).json({ error: e.message });
