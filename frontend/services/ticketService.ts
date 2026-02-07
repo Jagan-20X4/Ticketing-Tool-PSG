@@ -2,8 +2,6 @@ import { Ticket, TicketStatus, User, IssueMaster } from '../types';
 
 /**
  * Picks the issue that best matches the user's description and AI summary.
- * Used by the chatbot to assign the ticket to the correct issue type (and thus default assignee).
- * E.g. "I have problem with access rights" → Access & Right (IT-ACC-001) → default assignee Siddique Sheikh.
  */
 export const getBestMatchingIssue = (
   appIssues: IssueMaster[],
@@ -40,7 +38,6 @@ export const getSmartAssignee = (
     return { user: null, reason: 'No engineers defined for this issue type.' };
   }
 
-  // Calculate active workload for each candidate
   const candidates = issue.assigneeIds.map(id => {
     const activeTickets = allTickets.filter(t => 
       t.assigneeId === id && 
@@ -50,7 +47,6 @@ export const getSmartAssignee = (
     return { id, count: activeTickets.length };
   });
 
-  // Find candidate with minimum active tickets (Load Balancing)
   const winner = [...candidates].sort((a, b) => a.count - b.count)[0];
   const user = allUsers.find(u => u.id === winner.id) || null;
   

@@ -38,11 +38,10 @@ export const MOCK_USERS: User[] = [
   { id: 'u23', name: 'Kavita Rao', email: 'kavita.rao@indiraivf.in', role: UserRole.ASSIGNEE, department: 'IT Infrastructure', location: 'Udaipur', password: 'password123', phone: '' },
   { id: 'u25', name: 'Ishita Sisodiya', email: 'ishita.sisodiya@indiraivf.in', role: UserRole.ASSIGNEE, department: 'IT Infrastructure', location: 'Udaipur', password: 'password123', phone: '' },
   { id: 'u28', name: 'Vivek Sharma', email: 'vivek.sharma@indiraivf.in', role: UserRole.ASSIGNEE, department: 'IT Infrastructure', location: 'Udaipur', password: 'password123', phone: '' },
-  { id: 'u29', name: 'Shubham Tiwari', email: 'shubham.tiwari@indiraivf.in', role: UserRole.ASSIGNEE, department: 'IT Infrastructure', location: 'Udaipur', password: 'password123', phone: '' },
+  { id: 'u29', name: 'Shubham Tiwari', email: 'shubham.tiwari@indiraivf.in', role: UserRole.ASSIGNEE, department: 'IT Infrastructure', location: 'Mumbai', password: 'password123', phone: '' },
 ];
 
 export const MOCK_ISSUES: IssueMaster[] = [
-  // Assignments based on your Excel chart
   { code: 'IT-ACC-001', name: 'Access & Right', app: AppType.IT, category: TicketType.SERVICE_REQUEST, priority: Priority.HIGH, assigneeIds: ['u7', 'u6', 'u16'], slaHours: 24, status: 'Active' },
   { code: 'IT-CTV-001', name: 'CCTV / Smart PSS issue', app: AppType.IT, category: TicketType.INCIDENT, priority: Priority.HIGH, assigneeIds: ['u14', 'u12'], slaHours: 8, status: 'Active' },
   { code: 'IT-NET-001', name: 'Network Issue', app: AppType.IT, category: TicketType.INCIDENT, priority: Priority.HIGH, assigneeIds: ['u28', 'u17'], slaHours: 4, status: 'Active' },
