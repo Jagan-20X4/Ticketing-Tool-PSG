@@ -1,9 +1,19 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy init: only create client when key exists. Prevents white screen if key is missing.
+const apiKey = process.env.API_KEY;
+let ai: GoogleGenAI | null = null;
+
+function getClient(): GoogleGenAI | null {
+  if (!apiKey) return null;
+  if (!ai) ai = new GoogleGenAI({ apiKey });
+  return ai;
+}
 
 export const suggestTicketMetadata = async (description: string, app: string): Promise<{ summary: string; priority: string } | null> => {
+  const client = getClient();
+  if (!client) return null;
   try {
     const prompt = `
       You are an IT Service Desk AI assistant.
@@ -19,7 +29,7 @@ export const suggestTicketMetadata = async (description: string, app: string): P
       Example: {"summary": "Login failure on ERP", "priority": "High"}
     `;
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const response: GenerateContentResponse = await client.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -40,6 +50,8 @@ export const suggestTicketMetadata = async (description: string, app: string): P
 };
 
 export const triageIssue = async (description: string, availableApps: string[], base64Image?: string): Promise<{ summary: string; priority: string; app: string } | null> => {
+  const client = getClient();
+  if (!client) return null;
   try {
     const appList = availableApps.join(', ');
     const textPart = {
@@ -66,7 +78,7 @@ export const triageIssue = async (description: string, availableApps: string[], 
       });
     }
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: { parts },
       config: {
@@ -86,6 +98,8 @@ export const triageIssue = async (description: string, availableApps: string[], 
 };
 
 export const getInitialSolution = async (description: string, app: string, summary: string): Promise<string> => {
+  const client = getClient();
+  if (!client) return "Configure GEMINI_API_KEY in backend/.env to enable AI suggestions. An engineer has been notified.";
   try {
     const prompt = `
       You are a senior IT Support Engineer. A ticket has just been raised.
@@ -97,7 +111,7 @@ export const getInitialSolution = async (description: string, app: string, summa
       Keep it professional, helpful, and concise. Use markdown for bullets.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });

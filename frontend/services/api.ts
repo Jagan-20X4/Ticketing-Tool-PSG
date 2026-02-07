@@ -1,6 +1,6 @@
 /**
  * API client for Ticketing Tool backend (PostgreSQL).
- * Set VITE_API_URL in .env or .env.local (e.g. http://localhost:4000) to use the backend.
+ * VITE_API_URL is loaded from backend/.env (e.g. http://localhost:4000) so the frontend connects to the API.
  */
 
 const BASE = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL
