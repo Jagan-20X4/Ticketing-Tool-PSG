@@ -1,20 +1,22 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TicketType, Priority, User, IssueMaster, Application, Ticket, TicketStatus } from '../types';
 import { suggestTicketMetadata } from '../services/geminiService';
 import { getSmartAssignee } from '../services/ticketService';
 import * as LucideIcons from 'lucide-react';
 import { 
-  Upload, 
   Wand2, 
   Loader2, 
-  FileText, 
-  X, 
   ArrowLeft,
-  Info,
-  Image as ImageIcon,
   UserCheck
 } from 'lucide-react';
+
+/** Strip HTML tags for plain-text length and AI */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || div.innerText || '').trim();
+}
 
 interface TicketFormProps {
   currentUser: User;
@@ -28,15 +30,22 @@ interface TicketFormProps {
 export const TicketForm: React.FC<TicketFormProps> = ({ currentUser, issues, users, applications, tickets, onSubmit }) => {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const descriptionRef = useRef<HTMLDivElement>(null);
   
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [selectedIssueCode, setSelectedIssueCode] = useState<string>('');
   const [formData, setFormData] = useState({
     phone: currentUser.phone || '', 
     summary: '',
-    description: '',
-    files: [] as File[]
+    description: ''
   });
+
+  // Keep contentEditable in sync with formData.description when it's set externally (e.g. reset)
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (!el || formData.description === undefined) return;
+    if (el.innerHTML !== formData.description) el.innerHTML = formData.description;
+  }, [formData.description]);
 
   const selectedApp = applications.find(a => a.id === selectedAppId);
   const filteredIssues = issues.filter(issue => issue.app === selectedAppId && issue.status === 'Active');
@@ -52,22 +61,14 @@ export const TicketForm: React.FC<TicketFormProps> = ({ currentUser, issues, use
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData(prev => ({
-        ...prev,
-        files: [...prev.files, ...Array.from(e.target.files || [])]
-      }));
-    }
-  };
-
   const handleAiAssist = async () => {
-    if (!formData.description || formData.description.length < 10) {
+    const plainText = stripHtml(formData.description);
+    if (!plainText || plainText.length < 10) {
       alert("Please enter a longer description first.");
       return;
     }
     setAiLoading(true);
-    const suggestion = await suggestTicketMetadata(formData.description, selectedApp?.name || 'General');
+    const suggestion = await suggestTicketMetadata(plainText, selectedApp?.name || 'General');
     setAiLoading(false);
     
     if (suggestion) {
@@ -75,23 +76,76 @@ export const TicketForm: React.FC<TicketFormProps> = ({ currentUser, issues, use
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAppId || !selectedIssueCode) return;
+    const plainDesc = stripHtml(formData.description);
+    if (!plainDesc || plainDesc.length < 20) {
+      alert("Please provide a description of at least 20 characters.");
+      return;
+    }
 
     setLoading(true);
     const issue = issues.find(i => i.code === selectedIssueCode);
 
-    setTimeout(() => {
-      onSubmit({
+    try {
+      await onSubmit({
         ...formData,
         app: selectedAppId,
         issue: issue,
         assigneeId: bestAssignee?.id,
         type: issue?.category || TicketType.INCIDENT
       });
+    } catch (err) {
+      console.error('Failed to create ticket:', err);
+      alert('Failed to create ticket. Please try again.');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  const syncDescriptionFromEl = () => {
+    const el = descriptionRef.current;
+    if (el) handleChange('description', el.innerHTML);
+  };
+
+  const handleDescriptionPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const file = Array.from(items).find(item => item.kind === 'file' && item.type.startsWith('image/'));
+    if (!file) return; // let default paste handle text
+    e.preventDefault();
+    const blob = file.getAsFile();
+    if (!blob) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const el = descriptionRef.current;
+      if (!el) return;
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.marginTop = '8px';
+      img.style.marginBottom = '8px';
+      img.setAttribute('data-pasted-image', '1');
+      if (range) {
+        range.deleteContents();
+        range.insertNode(img);
+        range.setStartAfter(img);
+        range.setEndAfter(img);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      } else {
+        el.appendChild(document.createElement('br'));
+        el.appendChild(img);
+      }
+      syncDescriptionFromEl();
+    };
+    reader.readAsDataURL(blob);
   };
 
   if (!selectedAppId) {
@@ -213,12 +267,15 @@ export const TicketForm: React.FC<TicketFormProps> = ({ currentUser, issues, use
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
           <div className="relative">
-             <textarea 
-              required minLength={20} rows={5}
-              placeholder="Describe the issue in detail..."
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            <div
+              ref={descriptionRef}
+              contentEditable
+              data-placeholder="Describe the issue in detail... (You can paste screenshots with Ctrl+V)"
+              onInput={syncDescriptionFromEl}
+              onPaste={handleDescriptionPaste}
+              className="w-full min-h-[140px] px-4 py-3 pb-10 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none [&:empty::before]:content-[attr(data-placeholder)] [&:empty::before]:text-slate-400"
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+              suppressContentEditableWarning
             />
             <button
               type="button"

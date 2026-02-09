@@ -119,17 +119,20 @@ const App: React.FC = () => {
       attachments: data.attachments || []
     };
     if (useApi) {
-      const created = await api.postTicket(newTicket) as Ticket;
-      setTickets(prev => [created, ...prev]);
-      if (window.location.hash !== '#/dashboard' && window.location.hash !== '#/create' && window.location.hash !== '#/chat') {
+      try {
+        const created = await api.postTicket(newTicket) as Ticket;
+        setTickets(prev => [created, ...prev]);
         window.location.hash = '#/my-tickets';
+        return created;
+      } catch (err) {
+        console.warn('Ticket API failed, saving locally:', err);
+        setTickets(prev => [newTicket, ...prev]);
+        window.location.hash = '#/my-tickets';
+        return newTicket;
       }
-      return created;
     }
     setTickets(prev => [newTicket, ...prev]);
-    if (window.location.hash !== '#/dashboard' && window.location.hash !== '#/create' && window.location.hash !== '#/chat') {
-      window.location.hash = '#/my-tickets';
-    }
+    window.location.hash = '#/my-tickets';
     return newTicket;
   };
 

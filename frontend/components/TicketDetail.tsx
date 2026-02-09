@@ -22,6 +22,38 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+/** Sanitize description HTML for safe display (allow only safe tags and data: images) */
+function sanitizeDescriptionHtml(html: string): string {
+  if (!html || !html.trim()) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const allowedTags = new Set(['P', 'BR', 'IMG', 'DIV', 'SPAN', 'B', 'I', 'U', 'STRONG', 'EM']);
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      const tag = el.tagName;
+      if (!allowedTags.has(tag)) {
+        const children = Array.from(el.childNodes);
+        el.replaceWith(...children);
+        children.forEach(walk);
+        return;
+      }
+      if (tag === 'IMG') {
+        const src = (el as HTMLImageElement).getAttribute('src') || '';
+        if (!src.startsWith('data:')) (el as HTMLImageElement).removeAttribute('src');
+      }
+      Array.from(el.attributes).forEach(attr => {
+        if (attr.name !== 'src' && attr.name !== 'style' && !attr.name.startsWith('data-')) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    }
+    node.childNodes.forEach(walk);
+  };
+  walk(div);
+  return div.innerHTML;
+}
+
 interface TicketDetailProps {
   tickets: Ticket[];
   users?: User[];
@@ -244,7 +276,14 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({ tickets, users = [],
           <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
             <h3 className="text-lg font-semibold text-slate-800 mb-4">Description</h3>
             <div className="prose prose-slate max-w-none text-slate-600">
-              <p className="whitespace-pre-wrap">{ticket.description}</p>
+              {ticket.description && ticket.description.trim().includes('<') ? (
+                <div
+                  className="whitespace-pre-wrap break-words [&_img]:max-w-full [&_img]:h-auto [&_img]:block [&_img]:my-2 [&_img]:rounded"
+                  dangerouslySetInnerHTML={{ __html: sanitizeDescriptionHtml(ticket.description) }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap">{ticket.description}</p>
+              )}
             </div>
           </div>
 
