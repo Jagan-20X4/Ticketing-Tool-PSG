@@ -87,7 +87,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+          {/* <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">Access Credentials</p>
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                <p className="text-xs text-slate-600 font-mono">
@@ -95,7 +95,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                  Requester: charlie@helix.com / password123
                </p>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
