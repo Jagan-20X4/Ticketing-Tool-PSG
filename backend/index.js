@@ -118,6 +118,52 @@ const toTicket = (row, comments = [], attachments = []) => ({
   comments,
   attachments,
 });
+// ------------------- AI Chatbot Route -------------------
+const fetch = require("node-fetch");
+
+app.post("/api/chatbot", async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    // Gemini API key from backend/.env
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      console.error("❌ GEMINI_API_KEY missing in backend .env");
+      return res.status(500).json({ error: "Gemini API key missing in backend" });
+    }
+
+    const apiUrl =
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: message }]
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "Sorry, I couldn't understand. Please try again.";
+
+    res.json({ reply });
+  } catch (err) {
+    console.error("Chatbot Error:", err);
+    res.status(500).json({ error: "Chatbot failed" });
+  }
+});
 
 // ---------- Auth ----------
 app.post('/api/login', async (req, res) => {
